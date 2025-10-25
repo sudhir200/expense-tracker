@@ -109,15 +109,16 @@ export async function GET(request: NextRequest) {
         .lean();
       
       if (family) {
+        const familyData = family as any;
         exportData.family = {
-          id: family._id,
-          name: family.name,
-          description: family.description,
-          currency: family.currency,
-          memberCount: family.members.length,
-          userRole: family.members.find((m: any) => m.userId._id.toString() === user.userId)?.role,
-          joinedAt: family.members.find((m: any) => m.userId._id.toString() === user.userId)?.joinedAt,
-          settings: family.settings,
+          id: familyData._id,
+          name: familyData.name,
+          description: familyData.description,
+          currency: familyData.currency,
+          memberCount: familyData.members.length,
+          userRole: familyData.members.find((m: any) => m.userId._id.toString() === user.userId)?.role,
+          joinedAt: familyData.members.find((m: any) => m.userId._id.toString() === user.userId)?.joinedAt,
+          settings: familyData.settings,
         };
       }
     }
