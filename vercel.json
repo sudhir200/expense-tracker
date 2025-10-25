@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "git": {
+    "deploymentEnabled": {
+      "master": true,
+      "main": true
+    }
+  }
+}
