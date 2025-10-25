@@ -283,7 +283,7 @@ export default function SettingsPage() {
       const response = await api.get(`/api/family`);
       if (response.ok) {
         const data = await response.json();
-        setUserFamilyInfo(prev => ({
+        setUserFamilyInfo((prev: any) => ({
           ...prev,
           familyName: data.family?.name || 'Unknown Family'
         }));

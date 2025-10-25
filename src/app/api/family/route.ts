@@ -3,7 +3,6 @@ import dbConnect from '@/lib/dbConnect';
 import Family from '@/models/Family';
 import User from '@/models/User';
 import { requireAuth } from '@/lib/auth';
-import { generateInviteCode } from '@/lib/utils';
 
 // GET /api/family - Get user's family information
 export async function GET(request: NextRequest) {
