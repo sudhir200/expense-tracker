@@ -26,7 +26,7 @@ const dateRangeOptions = [
 const paymentMethodOptions = [
   { value: 'Cash', label: 'Cash' },
   { value: 'Card', label: 'Card' },
-  { value: 'UPI', label: 'UPI' },
+  { value: 'Wallet', label: 'Wallet' },
   { value: 'Bank Transfer', label: 'Bank Transfer' },
 ];
 

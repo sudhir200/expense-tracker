@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ICategory extends Document {
-  userId?: string;
+  userId: string;
   name: string;
   color: string;
   icon?: string;
@@ -12,7 +12,8 @@ const CategorySchema = new Schema<ICategory>(
   {
     userId: {
       type: String,
-      required: false, // Optional for single-user mode
+      required: true,
+      ref: 'User',
     },
     name: {
       type: String,

@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IBudget extends Document {
-  userId?: string;
+  userId: string;
   category: string;
   amount: number;
   month: Date;
@@ -11,7 +11,8 @@ const BudgetSchema = new Schema<IBudget>(
   {
     userId: {
       type: String,
-      required: false, // Optional for single-user mode
+      required: true,
+      ref: 'User',
     },
     category: {
       type: String,

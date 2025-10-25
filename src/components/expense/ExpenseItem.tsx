@@ -2,7 +2,9 @@
 
 import React from 'react';
 import { Expense, Category } from '@/types/expense';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
+import { formatExpenseAmountWithCachedDbRates } from '@/lib/currency';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Button } from '@/components/ui/Button';
 import { Edit, Trash2, CreditCard, Banknote, Smartphone, Building } from 'lucide-react';
 
@@ -16,11 +18,12 @@ interface ExpenseItemProps {
 const paymentMethodIcons = {
   Cash: Banknote,
   Card: CreditCard,
-  UPI: Smartphone,
+  Wallet: Smartphone,
   'Bank Transfer': Building,
 };
 
 export default function ExpenseItem({ expense, categories, onEdit, onDelete }: ExpenseItemProps) {
+  const { currency: userCurrency } = useSettings();
   const category = categories.find((cat) => cat.name === expense.category);
   const PaymentIcon = paymentMethodIcons[expense.paymentMethod];
 
@@ -41,12 +44,13 @@ export default function ExpenseItem({ expense, categories, onEdit, onDelete }: E
               {expense.description}
             </h3>
             <span className="text-lg font-semibold text-gray-900 dark:text-white ml-4">
-              {formatCurrency(expense.amount)}
+              {formatExpenseAmountWithCachedDbRates(expense.amount, expense.currency, userCurrency.code as any)}
             </span>
           </div>
           
           <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500 dark:text-gray-400">
             <span className="inline-flex items-center">
+              <span className="mr-1">{category?.icon || '🏷️'}</span>
               <span
                 className="inline-block w-2 h-2 rounded-full mr-1"
                 style={{ backgroundColor: category?.color || '#C9CBCF' }}

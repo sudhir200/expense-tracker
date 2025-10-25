@@ -2,10 +2,11 @@ export interface Expense {
   _id?: string;
   userId?: string;
   amount: number;
+  currency: string;
   category: string;
   description: string;
   date: Date;
-  paymentMethod: 'Cash' | 'Card' | 'UPI' | 'Bank Transfer';
+  paymentMethod: 'Cash' | 'Card' | 'Wallet' | 'Bank Transfer';
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -42,13 +43,28 @@ export interface ExpenseFilters {
 }
 
 export interface AnalyticsData {
+  // Expense data
   totalExpenses: number;
-  monthlyBudgetRemaining: number;
   expenseCount: number;
   categoryDistribution: { category: string; amount: number; color: string }[];
-  monthlyComparison: { month: string; amount: number }[];
-  dailyTrend: { date: string; amount: number }[];
   topCategories: { category: string; amount: number; color: string }[];
   recentTransactions: Expense[];
+  
+  // Income data
+  totalIncome: number;
+  incomeCount: number;
+  incomeSourceDistribution: { source: string; amount: number; color: string }[];
+  recentIncome: any[]; // Income type from income.ts
+  
+  // Combined metrics
+  netIncome: number;
+  savingsRate: number;
+  monthlyBudgetRemaining: number;
+  
+  // Trends
+  monthlyComparison: { month: string; amount: number }[];
+  dailyTrend: { date: string; amount: number }[];
+  
+  // Budget
   budgetProgress: { category: string; spent: number; budget: number; percentage: number }[];
 }

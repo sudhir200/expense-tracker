@@ -3,7 +3,8 @@
 import React from 'react';
 import { Pie } from 'react-chartjs-2';
 import { ChartProps, PieChartData } from '@/types/chart';
-import { PIE_CHART_OPTIONS } from '@/lib/chartConfig';
+import { createPieChartOptions } from '@/lib/chartConfig';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface PieChartProps extends Omit<ChartProps, 'data'> {
   data: PieChartData;
@@ -11,11 +12,14 @@ interface PieChartProps extends Omit<ChartProps, 'data'> {
 }
 
 export default function PieChart({ data, options, className, title }: PieChartProps) {
+  const { currency } = useSettings();
+  const baseOptions = createPieChartOptions(currency.code);
+  
   const chartOptions = {
-    ...PIE_CHART_OPTIONS,
+    ...baseOptions,
     ...options,
     plugins: {
-      ...PIE_CHART_OPTIONS.plugins,
+      ...baseOptions.plugins,
       ...options?.plugins,
       title: {
         display: !!title,

@@ -17,7 +17,7 @@ A comprehensive full-stack expense tracking application built with Next.js 14+, 
 ### 💰 Expense Management
 - **Add/Edit/Delete** expenses with full validation
 - **Expense Details**: Amount, category, description, date, payment method
-- **Payment Methods**: Cash, Card, UPI, Bank Transfer
+- **Payment Methods**: Cash, Card, Wallet, Bank Transfer
 - **Bulk Operations**: Export data to CSV/JSON
 
 ### 🔍 Advanced Filtering & Search
@@ -230,13 +230,27 @@ Make sure to:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 📚 Documentation
+
+For comprehensive documentation, visit the **Documentation** page in the application:
+- **In-App**: Navigate to `/docs` or use the Documentation link in the user menu
+- **Command Palette**: Press `Ctrl+/` (or `Cmd+/` on Mac) and search for "Documentation" (SUPERUSER only)
+
+The documentation includes:
+- Complete user guide and tutorials
+- Admin and developer guides  
+- API documentation
+- Troubleshooting and FAQ
+- Recent updates and changelog
+
 ## Support
 
 If you encounter any issues or have questions:
 
-1. Check the [Issues](https://github.com/your-repo/expense-tracker/issues) page
-2. Create a new issue with detailed information
-3. Include steps to reproduce any bugs
+1. Check the in-app Documentation at `/docs`
+2. Review the [Issues](https://github.com/your-repo/expense-tracker/issues) page
+3. Create a new issue with detailed information
+4. Include steps to reproduce any bugs
 
 ## Roadmap
 

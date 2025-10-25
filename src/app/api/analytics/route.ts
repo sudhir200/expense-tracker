@@ -1,65 +1,87 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
+import dbConnect from '@/lib/dbConnect';
 import Expense from '@/models/Expense';
 import Budget from '@/models/Budget';
+import Income from '@/models/Income';
 import { getStartOfMonth, getEndOfMonth } from '@/lib/utils';
 import { DEFAULT_CATEGORY_COLORS } from '@/lib/chartConfig';
+import { requireAuth, requirePermission } from '@/lib/auth';
+import { convertCurrency } from '@/lib/currency';
 
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
 
+    // Require authentication and expense read permission
+    const user = requirePermission(request, 'expense', 'read_own');
+
     const { searchParams } = new URL(request.url);
     const month = searchParams.get('month') || new Date().toISOString().slice(0, 7);
+    const displayCurrency = searchParams.get('currency') || 'USD'; // Get preferred currency
     const [year, monthNum] = month.split('-').map(Number);
     const currentMonth = new Date(year, monthNum - 1);
 
     const startOfMonth = getStartOfMonth(currentMonth);
     const endOfMonth = getEndOfMonth(currentMonth);
 
-    // Total expenses for current month
-    const totalExpensesResult = await Expense.aggregate([
-      {
-        $match: {
-          date: { $gte: startOfMonth, $lte: endOfMonth },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$amount' },
-          count: { $sum: 1 },
-        },
-      },
-    ]);
+    // Get all expenses for current month (need individual records for currency conversion)
+    const expenses = await Expense.find({
+      userId: user.userId,
+      date: { $gte: startOfMonth, $lte: endOfMonth },
+    });
 
-    const totalExpenses = totalExpensesResult[0]?.total || 0;
-    const expenseCount = totalExpensesResult[0]?.count || 0;
+    // Calculate total expenses with currency conversion
+    let totalExpenses = 0;
+    expenses.forEach(expense => {
+      const convertedAmount = convertCurrency(
+        expense.amount,
+        expense.currency as any,
+        displayCurrency as any
+      );
+      totalExpenses += convertedAmount;
+    });
 
-    // Category distribution
-    const categoryDistribution = await Expense.aggregate([
-      {
-        $match: {
-          date: { $gte: startOfMonth, $lte: endOfMonth },
-        },
-      },
-      {
-        $group: {
-          _id: '$category',
-          amount: { $sum: '$amount' },
-        },
-      },
-      {
-        $sort: { amount: -1 },
-      },
-    ]);
+    const expenseCount = expenses.length;
 
-    const categoryDistributionWithColors = categoryDistribution.map((item, index) => ({
-      category: item._id,
-      amount: item.amount,
-      color: DEFAULT_CATEGORY_COLORS[item._id as keyof typeof DEFAULT_CATEGORY_COLORS] || 
-             `hsl(${(index * 137.5) % 360}, 70%, 50%)`,
-    }));
+    // Get all income for current month (need individual records for currency conversion)
+    const incomes = await Income.find({
+      userId: user.userId,
+      date: { $gte: startOfMonth, $lte: endOfMonth },
+    });
+
+    // Calculate total income with currency conversion
+    let totalIncome = 0;
+    incomes.forEach(income => {
+      const convertedAmount = convertCurrency(
+        income.amount,
+        income.currency as any,
+        displayCurrency as any
+      );
+      totalIncome += convertedAmount;
+    });
+
+    const incomeCount = incomes.length;
+
+    // Category distribution with currency conversion
+    const categoryMap = new Map<string, number>();
+    expenses.forEach(expense => {
+      const convertedAmount = convertCurrency(
+        expense.amount,
+        expense.currency as any,
+        displayCurrency as any
+      );
+      const currentAmount = categoryMap.get(expense.category) || 0;
+      categoryMap.set(expense.category, currentAmount + convertedAmount);
+    });
+
+    const categoryDistributionWithColors = Array.from(categoryMap.entries())
+      .map(([category, amount], index) => ({
+        category,
+        amount,
+        color: DEFAULT_CATEGORY_COLORS[category as keyof typeof DEFAULT_CATEGORY_COLORS] || 
+               `hsl(${(index * 137.5) % 360}, 70%, 50%)`,
+      }))
+      .sort((a, b) => b.amount - a.amount);
 
     // Monthly comparison (last 6 months)
     const monthlyComparison = await Expense.aggregate([
@@ -119,14 +141,46 @@ export async function GET(request: NextRequest) {
     // Top 5 spending categories
     const topCategories = categoryDistributionWithColors.slice(0, 5);
 
-    // Recent transactions (last 10)
-    const recentTransactions = await Expense.find({})
+    // Income source distribution
+    const incomeSourceDistribution = await Income.aggregate([
+      {
+        $match: {
+          userId: user.userId,
+          date: { $gte: startOfMonth, $lte: endOfMonth },
+        },
+      },
+      {
+        $group: {
+          _id: '$source',
+          amount: { $sum: '$amount' },
+        },
+      },
+      {
+        $sort: { amount: -1 },
+      },
+    ]);
+
+    const incomeSourceDistributionWithColors = incomeSourceDistribution.map((item, index) => ({
+      source: item._id,
+      amount: item.amount,
+      color: `hsl(${(index * 137.5 + 180) % 360}, 70%, 50%)`, // Different hue range for income
+    }));
+
+    // Recent transactions (last 10 expenses)
+    const recentTransactions = await Expense.find({ userId: user.userId })
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
 
+    // Recent income (last 5)
+    const recentIncome = await Income.find({ userId: user.userId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
     // Budget progress
     const budgets = await Budget.find({
+      userId: user.userId,
       month: { $gte: startOfMonth, $lte: endOfMonth },
     });
 
@@ -135,6 +189,7 @@ export async function GET(request: NextRequest) {
         const spent = await Expense.aggregate([
           {
             $match: {
+              userId: user.userId,
               category: budget.category,
               date: { $gte: startOfMonth, $lte: endOfMonth },
             },
@@ -159,19 +214,36 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // Calculate monthly budget remaining
+    // Calculate monthly budget remaining and net income
     const totalBudget = budgets.reduce((sum, budget) => sum + budget.amount, 0);
     const monthlyBudgetRemaining = totalBudget - totalExpenses;
+    const netIncome = totalIncome - totalExpenses;
+    const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
 
     const analyticsData = {
+      // Expense data
       totalExpenses,
-      monthlyBudgetRemaining,
       expenseCount,
       categoryDistribution: categoryDistributionWithColors,
-      monthlyComparison: monthlyComparisonFormatted,
-      dailyTrend: dailyTrendFormatted,
       topCategories,
       recentTransactions,
+      
+      // Income data
+      totalIncome,
+      incomeCount,
+      incomeSourceDistribution: incomeSourceDistributionWithColors,
+      recentIncome,
+      
+      // Combined metrics
+      netIncome,
+      savingsRate,
+      monthlyBudgetRemaining,
+      
+      // Trends
+      monthlyComparison: monthlyComparisonFormatted,
+      dailyTrend: dailyTrendFormatted,
+      
+      // Budget
       budgetProgress,
     };
 

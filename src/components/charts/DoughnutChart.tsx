@@ -3,7 +3,8 @@
 import React from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import { ChartProps, DoughnutChartData } from '@/types/chart';
-import { DOUGHNUT_CHART_OPTIONS } from '@/lib/chartConfig';
+import { createDoughnutChartOptions } from '@/lib/chartConfig';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface DoughnutChartProps extends Omit<ChartProps, 'data'> {
   data: DoughnutChartData;
@@ -20,11 +21,14 @@ export default function DoughnutChart({
   centerText, 
   centerSubtext 
 }: DoughnutChartProps) {
+  const { currency } = useSettings();
+  const baseOptions = createDoughnutChartOptions(currency.code);
+  
   const chartOptions = {
-    ...DOUGHNUT_CHART_OPTIONS,
+    ...baseOptions,
     ...options,
     plugins: {
-      ...DOUGHNUT_CHART_OPTIONS.plugins,
+      ...baseOptions.plugins,
       ...options?.plugins,
       title: {
         display: !!title,

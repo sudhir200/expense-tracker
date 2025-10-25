@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Expense, ExpenseFilters } from '@/types/expense';
+import { api } from '@/lib/api';
+import { useRefreshAnalytics } from './useRefreshAnalytics';
 
 interface UseExpensesOptions {
   filters?: ExpenseFilters;
@@ -37,6 +39,7 @@ export function useExpenses(options: UseExpensesOptions = {}): UseExpensesReturn
     total: 0,
     pages: 0,
   });
+  const { refreshAnalytics } = useRefreshAnalytics();
 
   const buildQueryParams = useCallback(() => {
     const params = new URLSearchParams();
@@ -91,7 +94,7 @@ export function useExpenses(options: UseExpensesOptions = {}): UseExpensesReturn
       setError(null);
       
       const queryParams = buildQueryParams();
-      const response = await fetch(`/api/expenses?${queryParams}`);
+      const response = await api.get(`/api/expenses?${queryParams}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch expenses');
@@ -109,13 +112,7 @@ export function useExpenses(options: UseExpensesOptions = {}): UseExpensesReturn
 
   const createExpense = useCallback(async (expense: Omit<Expense, '_id' | 'createdAt' | 'updatedAt'>) => {
     try {
-      const response = await fetch('/api/expenses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(expense),
-      });
+      const response = await api.post('/api/expenses', expense);
 
       if (!response.ok) {
         const error = await response.json();
@@ -123,20 +120,15 @@ export function useExpenses(options: UseExpensesOptions = {}): UseExpensesReturn
       }
 
       await fetchExpenses(); // Refetch to update the list
+      refreshAnalytics(); // Refresh analytics data
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Failed to create expense');
     }
-  }, [fetchExpenses]);
+  }, [fetchExpenses, refreshAnalytics]);
 
   const updateExpense = useCallback(async (id: string, expense: Partial<Expense>) => {
     try {
-      const response = await fetch(`/api/expenses/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(expense),
-      });
+      const response = await api.put(`/api/expenses/${id}`, expense);
 
       if (!response.ok) {
         const error = await response.json();
@@ -144,16 +136,15 @@ export function useExpenses(options: UseExpensesOptions = {}): UseExpensesReturn
       }
 
       await fetchExpenses(); // Refetch to update the list
+      refreshAnalytics(); // Refresh analytics data
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Failed to update expense');
     }
-  }, [fetchExpenses]);
+  }, [fetchExpenses, refreshAnalytics]);
 
   const deleteExpense = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/expenses/${id}`, {
-        method: 'DELETE',
-      });
+      const response = await api.delete(`/api/expenses/${id}`);
 
       if (!response.ok) {
         const error = await response.json();
@@ -161,10 +152,11 @@ export function useExpenses(options: UseExpensesOptions = {}): UseExpensesReturn
       }
 
       await fetchExpenses(); // Refetch to update the list
+      refreshAnalytics(); // Refresh analytics data
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Failed to delete expense');
     }
-  }, [fetchExpenses]);
+  }, [fetchExpenses, refreshAnalytics]);
 
   useEffect(() => {
     fetchExpenses();

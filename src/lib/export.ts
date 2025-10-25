@@ -1,8 +1,9 @@
 import { Expense } from '@/types/expense';
-import { formatCurrency, formatDate } from './utils';
+import { formatDate } from './utils';
+import { formatCurrency } from './currency';
 
 export function exportToCSV(expenses: Expense[], filename: string = 'expenses.csv') {
-  const headers = ['Date', 'Description', 'Category', 'Amount', 'Payment Method'];
+  const headers = ['Date', 'Description', 'Category', 'Amount', 'Currency', 'Payment Method'];
   
   const csvContent = [
     headers.join(','),
@@ -11,6 +12,7 @@ export function exportToCSV(expenses: Expense[], filename: string = 'expenses.cs
       `"${expense.description}"`,
       expense.category,
       expense.amount.toFixed(2),
+      expense.currency || 'USD',
       expense.paymentMethod
     ].join(','))
   ].join('\n');
@@ -45,7 +47,8 @@ export function exportToJSON(expenses: Expense[], filename: string = 'expenses.j
   }
 }
 
-export function generateExpenseReport(expenses: Expense[]): string {
+export function generateExpenseReport(expenses: Expense[], displayCurrency: string = 'USD'): string {
+  // Note: This is a simplified report. For accurate totals, all amounts should be converted to the same currency
   const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const categoryTotals = expenses.reduce((acc, expense) => {
     acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
@@ -54,6 +57,13 @@ export function generateExpenseReport(expenses: Expense[]): string {
 
   const paymentMethodTotals = expenses.reduce((acc, expense) => {
     acc[expense.paymentMethod] = (acc[expense.paymentMethod] || 0) + expense.amount;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Group expenses by currency for better reporting
+  const currencyTotals = expenses.reduce((acc, expense) => {
+    const currency = expense.currency || 'USD';
+    acc[currency] = (acc[currency] || 0) + expense.amount;
     return acc;
   }, {} as Record<string, number>);
 
@@ -76,6 +86,12 @@ BREAKDOWN BY PAYMENT METHOD
 ${Object.entries(paymentMethodTotals)
   .sort(([,a], [,b]) => b - a)
   .map(([method, amount]) => `${method}: ${formatCurrency(amount)}`)
+  .join('\n')}
+
+BREAKDOWN BY CURRENCY
+${Object.entries(currencyTotals)
+  .sort(([,a], [,b]) => b - a)
+  .map(([currency, amount]) => `${currency}: ${formatCurrency(amount, currency as any)}`)
   .join('\n')}
 
 RECENT TRANSACTIONS

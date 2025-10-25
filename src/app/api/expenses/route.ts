@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
+import dbConnect from '@/lib/dbConnect';
 import Expense from '@/models/Expense';
+import { requireAuth, requirePermission } from '@/lib/auth';
 import { ExpenseFilters } from '@/types/expense';
 
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
+
+    // Require authentication
+    const user = requireAuth(request);
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -13,7 +17,9 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build filter object
-    const filters: any = {};
+    const filters: any = {
+      userId: user.userId, // Filter by authenticated user
+    };
 
     // Date range filter
     const startDate = searchParams.get('startDate');
@@ -76,6 +82,12 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching expenses:', error);
+    if (error instanceof Error && error.message === 'Authentication required') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to fetch expenses' },
       { status: 500 }
@@ -87,13 +99,24 @@ export async function POST(request: NextRequest) {
   try {
     await dbConnect();
 
+    // Require authentication
+    const user = requireAuth(request);
+
     const body = await request.json();
-    const { amount, category, description, date, paymentMethod } = body;
+    const { amount, currency, category, description, date, paymentMethod } = body;
 
     // Validation
-    if (!amount || !category || !description || !date || !paymentMethod) {
+    if (!amount || !currency || !category || !description || !date || !paymentMethod) {
       return NextResponse.json(
         { error: 'All fields are required' },
+        { status: 400 }
+      );
+    }
+
+    // Additional currency validation
+    if (typeof currency !== 'string' || currency.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Currency must be a valid string' },
         { status: 400 }
       );
     }
@@ -105,7 +128,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validPaymentMethods = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
+    const validPaymentMethods = ['Cash', 'Card', 'Wallet', 'Bank Transfer'];
     if (!validPaymentMethods.includes(paymentMethod)) {
       return NextResponse.json(
         { error: 'Invalid payment method' },
@@ -114,18 +137,28 @@ export async function POST(request: NextRequest) {
     }
 
     const expense = new Expense({
+      userId: user.userId,
       amount: parseFloat(amount),
+      currency: currency.trim(),
       category,
       description,
       date: new Date(date),
       paymentMethod,
     });
 
+    console.log('Creating expense with currency:', currency.trim());
     await expense.save();
+    console.log('Saved expense with currency:', expense.currency);
 
     return NextResponse.json(expense, { status: 201 });
   } catch (error) {
     console.error('Error creating expense:', error);
+    if (error instanceof Error && error.message === 'Authentication required') {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to create expense' },
       { status: 500 }

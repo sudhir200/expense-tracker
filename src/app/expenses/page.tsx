@@ -8,7 +8,10 @@ import ExpenseForm from '@/components/expense/ExpenseForm';
 import ExpenseList from '@/components/expense/ExpenseList';
 import FilterBar from '@/components/FilterBar';
 import { Expense, Category, ExpenseFilters } from '@/types/expense';
-import { Plus } from 'lucide-react';
+import { Plus, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import { useSettings } from '@/contexts/SettingsContext';
+import { formatCurrency, convertCurrency } from '@/lib/currency';
+import { exportToCSV, exportToJSON, generateExpenseReport } from '@/lib/export';
 
 export default function ExpensesPage() {
   const [filters, setFilters] = useState<ExpenseFilters>({});
@@ -17,6 +20,9 @@ export default function ExpensesPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  
+  const { currency } = useSettings();
 
   const {
     expenses,
@@ -45,6 +51,23 @@ export default function ExpensesPage() {
 
     fetchCategories();
   }, []);
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showExportMenu) {
+        setShowExportMenu(false);
+      }
+    };
+
+    if (showExportMenu) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showExportMenu]);
 
   const handleAddExpense = async (expense: Omit<Expense, '_id' | 'createdAt' | 'updatedAt'>) => {
     try {
@@ -99,8 +122,45 @@ export default function ExpensesPage() {
     setEditingExpense(null);
   };
 
+  // Export functions
+  const handleExportCSV = () => {
+    exportToCSV(expenses, `expenses-${new Date().toISOString().split('T')[0]}.csv`);
+    setShowExportMenu(false);
+  };
+
+  const handleExportJSON = () => {
+    exportToJSON(expenses, `expenses-${new Date().toISOString().split('T')[0]}.json`);
+    setShowExportMenu(false);
+  };
+
+  const handleExportReport = () => {
+    const report = generateExpenseReport(expenses, currency.code);
+    const blob = new Blob([report], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `expense-report-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+  };
+
+  // Calculate total in user's preferred currency
+  const calculateTotal = () => {
+    return expenses.reduce((sum, expense) => {
+      const convertedAmount = convertCurrency(
+        expense.amount, 
+        expense.currency || 'USD', 
+        currency.code
+      );
+      return sum + convertedAmount;
+    }, 0);
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -111,10 +171,52 @@ export default function ExpensesPage() {
             Manage and track all your expenses
           </p>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Add Expense
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* Export Menu */}
+          {expenses.length > 0 && (
+            <div className="relative">
+              <Button
+                variant="outline"
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </Button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                  <div className="py-1">
+                    <button
+                      onClick={handleExportCSV}
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      Export as CSV
+                    </button>
+                    <button
+                      onClick={handleExportJSON}
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Export as JSON
+                    </button>
+                    <button
+                      onClick={handleExportReport}
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Generate Report
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add Expense
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -152,10 +254,7 @@ export default function ExpensesPage() {
                 Showing {expenses.length} of {pagination.total} expenses
               </span>
               <span>
-                Total: $
-                {expenses
-                  .reduce((sum, expense) => sum + expense.amount, 0)
-                  .toFixed(2)}
+                Total: {formatCurrency(calculateTotal(), currency.code)}
               </span>
             </div>
           </div>
@@ -214,6 +313,21 @@ export default function ExpensesPage() {
           onSubmit={handleAddExpense}
           onCancel={handleCloseAddModal}
           loading={formLoading}
+          onCategoryAdded={() => {
+            // Refresh categories when a new one is added
+            const fetchCategories = async () => {
+              try {
+                const response = await fetch('/api/categories');
+                if (response.ok) {
+                  const data = await response.json();
+                  setCategories(data);
+                }
+              } catch (error) {
+                console.error('Error fetching categories:', error);
+              }
+            };
+            fetchCategories();
+          }}
         />
       </Modal>
 
@@ -231,6 +345,21 @@ export default function ExpensesPage() {
             onSubmit={handleEditExpense}
             onCancel={handleCloseEditModal}
             loading={formLoading}
+            onCategoryAdded={() => {
+              // Refresh categories when a new one is added
+              const fetchCategories = async () => {
+                try {
+                  const response = await fetch('/api/categories');
+                  if (response.ok) {
+                    const data = await response.json();
+                    setCategories(data);
+                  }
+                } catch (error) {
+                  console.error('Error fetching categories:', error);
+                }
+              };
+              fetchCategories();
+            }}
           />
         )}
       </Modal>

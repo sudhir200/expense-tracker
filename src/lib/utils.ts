@@ -5,12 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-}
+// Note: formatCurrency has been moved to /lib/currency.ts for proper multi-currency support
+// Import { formatCurrency } from '@/lib/currency' instead of using this function
 
 export function formatDate(date: Date | string): string {
   return new Intl.DateTimeFormat('en-US', {

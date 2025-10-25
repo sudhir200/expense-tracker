@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
+import dbConnect from '@/lib/dbConnect';
 import Category from '@/models/Category';
 import { DEFAULT_CATEGORIES } from '@/lib/chartConfig';
+import { requireAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
+
+    // Try to get user info, but don't require auth for getting categories
+    let userId = null;
+    try {
+      const user = requireAuth(request);
+      userId = user.userId;
+    } catch (error) {
+      // If auth fails, we'll show default categories only
+    }
 
     // Get all categories, prioritizing default categories first
     const categories = await Category.find({})
@@ -13,8 +23,12 @@ export async function GET(request: NextRequest) {
       .lean();
 
     // If no categories exist, initialize with default categories
-    if (categories.length === 0) {
-      const defaultCategories = await Category.insertMany(DEFAULT_CATEGORIES);
+    if (categories.length === 0 && userId) {
+      const defaultCategoriesWithUserId = DEFAULT_CATEGORIES.map(cat => ({
+        ...cat,
+        userId: userId
+      }));
+      const defaultCategories = await Category.insertMany(defaultCategoriesWithUserId);
       return NextResponse.json(defaultCategories);
     }
 
@@ -32,6 +46,9 @@ export async function POST(request: NextRequest) {
   try {
     await dbConnect();
 
+    // Authenticate user
+    const user = requireAuth(request);
+    
     const body = await request.json();
     const { name, color, icon } = body;
 
@@ -65,6 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     const category = new Category({
+      userId: user.userId,
       name: name.trim(),
       color,
       icon: icon || '📦',
@@ -88,6 +106,9 @@ export async function PUT(request: NextRequest) {
   try {
     await dbConnect();
 
+    // Authenticate user
+    const user = requireAuth(request);
+
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
 
@@ -96,7 +117,11 @@ export async function PUT(request: NextRequest) {
       const existingCategories = await Category.find({ isDefault: true });
       
       if (existingCategories.length === 0) {
-        const defaultCategories = await Category.insertMany(DEFAULT_CATEGORIES);
+        const defaultCategoriesWithUserId = DEFAULT_CATEGORIES.map(cat => ({
+          ...cat,
+          userId: user.userId
+        }));
+        const defaultCategories = await Category.insertMany(defaultCategoriesWithUserId);
         return NextResponse.json({
           message: 'Default categories initialized',
           categories: defaultCategories,

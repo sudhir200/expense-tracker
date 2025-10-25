@@ -10,6 +10,9 @@ MONGODB_URI=mongodb://localhost:27017/expense-tracker
 # For MongoDB Atlas (replace with your connection string):
 # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/expense-tracker
 
+# JWT Secret for authentication (change this in production)
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production-${Math.random().toString(36).substring(2, 15)}
+
 # Note: Make sure to:
 # 1. Install MongoDB locally OR create a MongoDB Atlas account
 # 2. Replace the connection string above with your actual MongoDB URI

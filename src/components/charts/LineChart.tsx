@@ -3,7 +3,8 @@
 import React from 'react';
 import { Line } from 'react-chartjs-2';
 import { ChartProps, LineChartData } from '@/types/chart';
-import { LINE_CHART_OPTIONS } from '@/lib/chartConfig';
+import { createLineChartOptions } from '@/lib/chartConfig';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface LineChartProps extends Omit<ChartProps, 'data'> {
   data: LineChartData;
@@ -11,11 +12,14 @@ interface LineChartProps extends Omit<ChartProps, 'data'> {
 }
 
 export default function LineChart({ data, options, className, title }: LineChartProps) {
+  const { currency } = useSettings();
+  const baseOptions = createLineChartOptions(currency.code);
+  
   const chartOptions = {
-    ...LINE_CHART_OPTIONS,
+    ...baseOptions,
     ...options,
     plugins: {
-      ...LINE_CHART_OPTIONS.plugins,
+      ...baseOptions.plugins,
       ...options?.plugins,
       title: {
         display: !!title,

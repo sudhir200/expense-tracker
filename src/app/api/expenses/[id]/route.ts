@@ -47,7 +47,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { amount, category, description, date, paymentMethod } = body;
+    const { amount, currency, category, description, date, paymentMethod } = body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
@@ -57,7 +57,7 @@ export async function PUT(
     }
 
     // Validation
-    if (!amount || !category || !description || !date || !paymentMethod) {
+    if (!amount || !currency || !category || !description || !date || !paymentMethod) {
       return NextResponse.json(
         { error: 'All fields are required' },
         { status: 400 }
@@ -71,7 +71,7 @@ export async function PUT(
       );
     }
 
-    const validPaymentMethods = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
+    const validPaymentMethods = ['Cash', 'Card', 'Wallet', 'Bank Transfer'];
     if (!validPaymentMethods.includes(paymentMethod)) {
       return NextResponse.json(
         { error: 'Invalid payment method' },
@@ -83,6 +83,7 @@ export async function PUT(
       id,
       {
         amount: parseFloat(amount),
+        currency,
         category,
         description,
         date: new Date(date),

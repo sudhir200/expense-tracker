@@ -11,6 +11,7 @@ import {
   ArcElement,
   Filler,
 } from 'chart.js';
+import { formatCurrency } from './currency';
 
 // Register Chart.js components
 ChartJS.register(
@@ -52,8 +53,8 @@ export const CHART_COLORS = [
   '#FF6384',
 ];
 
-// Default chart options
-export const DEFAULT_CHART_OPTIONS = {
+// Function to create chart options with dynamic currency formatting
+export const createChartOptions = (currencyCode: string = 'USD') => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -76,62 +77,77 @@ export const DEFAULT_CHART_OPTIONS = {
         label: function (context: any) {
           const label = context.dataset.label || '';
           const value = context.parsed.y || context.parsed;
-          return `${label}: $${value.toFixed(2)}`;
+          const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+          return `${label}: ${formatCurrency(numericValue, currencyCode as any)}`;
         },
       },
     },
   },
-};
+});
 
-// Pie chart specific options
-export const PIE_CHART_OPTIONS = {
-  ...DEFAULT_CHART_OPTIONS,
+// Default chart options (for backward compatibility)
+export const DEFAULT_CHART_OPTIONS = createChartOptions();
+
+// Function to create pie chart options with dynamic currency formatting
+export const createPieChartOptions = (currencyCode: string = 'USD') => ({
+  ...createChartOptions(currencyCode),
   plugins: {
-    ...DEFAULT_CHART_OPTIONS.plugins,
+    ...createChartOptions(currencyCode).plugins,
     legend: {
-      ...DEFAULT_CHART_OPTIONS.plugins.legend,
+      ...createChartOptions(currencyCode).plugins.legend,
       position: 'right' as const,
     },
   },
-};
+});
 
-// Doughnut chart specific options
-export const DOUGHNUT_CHART_OPTIONS = {
-  ...DEFAULT_CHART_OPTIONS,
+// Function to create doughnut chart options with dynamic currency formatting
+export const createDoughnutChartOptions = (currencyCode: string = 'USD') => ({
+  ...createChartOptions(currencyCode),
   plugins: {
-    ...DEFAULT_CHART_OPTIONS.plugins,
+    ...createChartOptions(currencyCode).plugins,
     legend: {
-      ...DEFAULT_CHART_OPTIONS.plugins.legend,
+      ...createChartOptions(currencyCode).plugins.legend,
       position: 'right' as const,
     },
   },
   cutout: '60%',
-};
+});
 
-// Bar chart specific options
-export const BAR_CHART_OPTIONS = {
-  ...DEFAULT_CHART_OPTIONS,
+// Pie chart specific options (for backward compatibility)
+export const PIE_CHART_OPTIONS = createPieChartOptions();
+
+// Doughnut chart specific options (for backward compatibility)
+export const DOUGHNUT_CHART_OPTIONS = createDoughnutChartOptions();
+
+// Function to create bar chart options with dynamic currency formatting
+export const createBarChartOptions = (currencyCode: string = 'USD') => ({
+  ...createChartOptions(currencyCode),
   scales: {
     y: {
       beginAtZero: true,
       ticks: {
         callback: function (value: any) {
-          return '$' + value.toFixed(0);
+          const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+          return formatCurrency(numericValue, currencyCode as any);
         },
       },
     },
   },
-};
+});
 
-// Line chart specific options
-export const LINE_CHART_OPTIONS = {
-  ...DEFAULT_CHART_OPTIONS,
+// Bar chart specific options (for backward compatibility)
+export const BAR_CHART_OPTIONS = createBarChartOptions();
+
+// Function to create line chart options with dynamic currency formatting
+export const createLineChartOptions = (currencyCode: string = 'USD') => ({
+  ...createChartOptions(currencyCode),
   scales: {
     y: {
       beginAtZero: true,
       ticks: {
         callback: function (value: any) {
-          return '$' + value.toFixed(0);
+          const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+          return formatCurrency(numericValue, currencyCode as any);
         },
       },
     },
@@ -145,7 +161,10 @@ export const LINE_CHART_OPTIONS = {
       hoverRadius: 6,
     },
   },
-};
+});
+
+// Line chart specific options (for backward compatibility)
+export const LINE_CHART_OPTIONS = createLineChartOptions();
 
 // Dark mode chart options
 export const DARK_MODE_CHART_OPTIONS = {

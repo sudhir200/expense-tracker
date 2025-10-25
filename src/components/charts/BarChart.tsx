@@ -3,7 +3,9 @@
 import React from 'react';
 import { Bar } from 'react-chartjs-2';
 import { ChartProps, BarChartData } from '@/types/chart';
-import { BAR_CHART_OPTIONS } from '@/lib/chartConfig';
+import { createBarChartOptions } from '@/lib/chartConfig';
+import { useSettings } from '@/contexts/SettingsContext';
+import { formatCurrency } from '@/lib/currency';
 
 interface BarChartProps extends Omit<ChartProps, 'data'> {
   data: BarChartData;
@@ -18,12 +20,15 @@ export default function BarChart({
   title, 
   horizontal = false 
 }: BarChartProps) {
+  const { currency } = useSettings();
+  const baseOptions = createBarChartOptions(currency.code);
+  
   const chartOptions = {
-    ...BAR_CHART_OPTIONS,
+    ...baseOptions,
     ...options,
     indexAxis: horizontal ? ('y' as const) : ('x' as const),
     plugins: {
-      ...BAR_CHART_OPTIONS.plugins,
+      ...baseOptions.plugins,
       ...options?.plugins,
       title: {
         display: !!title,
@@ -36,14 +41,14 @@ export default function BarChart({
       },
     },
     scales: {
-      ...BAR_CHART_OPTIONS.scales,
+      ...baseOptions.scales,
       ...options?.scales,
       ...(horizontal && {
         x: {
           beginAtZero: true,
           ticks: {
             callback: function (value: any) {
-              return '$' + value.toFixed(0);
+              return formatCurrency(value, currency.code as any);
             },
           },
         },
